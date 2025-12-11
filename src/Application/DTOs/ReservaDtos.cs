@@ -1,15 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Api.Models;
+namespace Application.DTOs;
 
-public record ReservaCreateRequest(
+public record ReservaCreateDto(
     [property: Required] Guid EquipoId,
     [property: Required] DateTime FechaInicio,
     [property: Required] DateTime FechaFin,
     string? Notas
 );
 
-public record ReservaResponse(
+public record ReservaDto(
     Guid Id,
     Guid EquipoId,
     string Equipo,

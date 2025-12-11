@@ -1,7 +1,6 @@
-using Infrastructure.Data;
+using Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Api.Controllers;
 
@@ -10,27 +9,17 @@ namespace Api.Controllers;
 [Authorize]
 public class EquiposController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IEquipoService _equipoService;
 
-    public EquiposController(ApplicationDbContext context)
+    public EquiposController(IEquipoService equipoService)
     {
-        _context = context;
+        _equipoService = equipoService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var equipos = await _context.Equipos
-            .Include(e => e.Softwares)
-            .Select(e => new
-            {
-                e.Id,
-                e.Nombre,
-                e.Descripcion,
-                Softwares = e.Softwares.Select(s => new { s.Id, s.Nombre, s.Version })
-            })
-            .ToListAsync();
-
+        var equipos = await _equipoService.GetAllAsync();
         return Ok(equipos);
     }
 }
