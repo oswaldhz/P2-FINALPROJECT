@@ -1,11 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using Api.Models;
-using Domain.Entities;
-using Infrastructure.Data;
+using Application.DTOs;
+using Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Api.Controllers;
 
@@ -14,120 +12,61 @@ namespace Api.Controllers;
 [Authorize]
 public class ReservasController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IReservaService _reservaService;
 
-    public ReservasController(ApplicationDbContext context)
+    public ReservasController(IReservaService reservaService)
     {
-        _context = context;
+        _reservaService = reservaService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ReservaResponse>>> GetAll()
+    public async Task<ActionResult<IEnumerable<ReservaDto>>> GetAll()
     {
-        var reservas = await _context.Reservas
-            .Include(r => r.Equipo)
-            .Include(r => r.Usuario)
-            .OrderByDescending(r => r.FechaInicio)
-            .Select(r => new ReservaResponse(
-                r.Id,
-                r.EquipoId,
-                r.Equipo!.Nombre,
-                r.UsuarioId,
-                r.Usuario!.Nombre,
-                r.FechaInicio,
-                r.FechaFin,
-                r.Estado,
-                r.Notas))
-            .ToListAsync();
-
-        return reservas;
+        var reservas = await _reservaService.GetAllAsync();
+        return Ok(reservas);
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ReservaResponse>> GetById(Guid id)
+    public async Task<ActionResult<ReservaDto>> GetById(Guid id)
     {
-        var reserva = await _context.Reservas
-            .Include(r => r.Equipo)
-            .Include(r => r.Usuario)
-            .Where(r => r.Id == id)
-            .Select(r => new ReservaResponse(
-                r.Id,
-                r.EquipoId,
-                r.Equipo!.Nombre,
-                r.UsuarioId,
-                r.Usuario!.Nombre,
-                r.FechaInicio,
-                r.FechaFin,
-                r.Estado,
-                r.Notas))
-            .FirstOrDefaultAsync();
+        var reserva = await _reservaService.GetByIdAsync(id);
 
         if (reserva is null)
         {
             return NotFound();
         }
 
-        return reserva;
+        return Ok(reserva);
     }
 
     [HttpPost]
-    public async Task<ActionResult<ReservaResponse>> Create(ReservaCreateRequest request)
+    public async Task<ActionResult<ReservaDto>> Create(ReservaCreateDto request)
     {
-        if (request.FechaFin <= request.FechaInicio)
-        {
-            return BadRequest(new { message = "La fecha de fin debe ser mayor a la de inicio" });
-        }
-
         var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
         if (!Guid.TryParse(userId, out var usuarioId))
         {
             return Unauthorized();
         }
 
-        var equipoExists = await _context.Equipos.AnyAsync(e => e.Id == request.EquipoId);
-        if (!equipoExists)
+        var resultado = await _reservaService.CreateAsync(usuarioId, request);
+        if (!resultado.Success || resultado.Value is null)
         {
-            return NotFound(new { message = "Equipo no encontrado" });
+            return BadRequest(new { message = resultado.Error });
         }
 
-        var reserva = new Reserva
-        {
-            Id = Guid.NewGuid(),
-            UsuarioId = usuarioId,
-            EquipoId = request.EquipoId,
-            FechaInicio = request.FechaInicio,
-            FechaFin = request.FechaFin,
-            Notas = request.Notas,
-            Estado = "Pendiente"
-        };
-
-        _context.Reservas.Add(reserva);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = reserva.Id }, new ReservaResponse(
-            reserva.Id,
-            reserva.EquipoId,
-            (await _context.Equipos.FindAsync(reserva.EquipoId))?.Nombre ?? string.Empty,
-            reserva.UsuarioId,
-            (await _context.Usuarios.FindAsync(reserva.UsuarioId))?.Nombre ?? string.Empty,
-            reserva.FechaInicio,
-            reserva.FechaFin,
-            reserva.Estado,
-            reserva.Notas));
+        return CreatedAtAction(nameof(GetById), new { id = resultado.Value.Id }, resultado.Value);
     }
 
     [HttpPut("{id:guid}/estado")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateEstado(Guid id, [FromBody] string estado)
     {
-        var reserva = await _context.Reservas.FindAsync(id);
-        if (reserva is null)
+        var resultado = await _reservaService.UpdateEstadoAsync(id, estado);
+        if (!resultado.Success)
         {
-            return NotFound();
+            return NotFound(new { message = resultado.Error });
         }
 
-        reserva.Estado = estado;
-        await _context.SaveChangesAsync();
         return NoContent();
     }
 
@@ -135,14 +74,12 @@ public class ReservasController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var reserva = await _context.Reservas.FindAsync(id);
-        if (reserva is null)
+        var resultado = await _reservaService.DeleteAsync(id);
+        if (!resultado.Success)
         {
-            return NotFound();
+            return NotFound(new { message = resultado.Error });
         }
 
-        _context.Reservas.Remove(reserva);
-        await _context.SaveChangesAsync();
         return NoContent();
     }
 }
