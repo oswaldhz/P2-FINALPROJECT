@@ -24,7 +24,13 @@ Estructura de proyectos:
    ```
 4. Swagger estará disponible en `/swagger` en entorno de desarrollo.
 
-Credenciales sembradas: `admin@example.com` / `Admin123$` (rol `Admin`).
+### Configuración del usuario administrador inicial
+
+El sembrado crea un usuario con rol `Admin` utilizando los valores de configuración `AdminUser:Email`, `AdminUser:Name` y `AdminUser:Password`.
+
+- Para ambientes productivos, define estas claves mediante variables de entorno (ej. `AdminUser__Email`, `AdminUser__Name`, `AdminUser__Password`) o en un archivo de configuración seguro antes de ejecutar las migraciones o el servicio.
+- Si las claves no están presentes y el entorno es **Desarrollo**, se usarán valores por defecto (`admin@example.com` / `Administrador` / `Admin123$`).
+- Si las claves faltan en ambientes no desarrollos, el sembrado fallará para evitar crear credenciales inseguras.
 
 ## Frontend (React + Vite + Chakra UI)
 

@@ -2,6 +2,8 @@ using Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace Infrastructure.Seed;
 
@@ -11,20 +13,23 @@ public static class SeedData
     {
         using var scope = serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Data.ApplicationDbContext>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var environment = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
 
         await db.Database.MigrateAsync();
 
         if (!db.Usuarios.Any())
         {
+            var adminConfig = GetAdminUserConfiguration(configuration, environment);
             var hasher = new PasswordHasher<Usuario>();
             var admin = new Usuario
             {
                 Id = Guid.NewGuid(),
-                Nombre = "Administrador",
-                Email = "admin@example.com",
+                Nombre = adminConfig.Name,
+                Email = adminConfig.Email,
                 Rol = "Admin"
             };
-            admin.PasswordHash = hasher.HashPassword(admin, "Admin123$");
+            admin.PasswordHash = hasher.HashPassword(admin, adminConfig.Password);
             db.Usuarios.Add(admin);
         }
 
@@ -49,4 +54,26 @@ public static class SeedData
 
         await db.SaveChangesAsync();
     }
+
+    private static AdminUserConfiguration GetAdminUserConfiguration(IConfiguration configuration, IHostEnvironment environment)
+    {
+        var adminSection = configuration.GetSection("AdminUser");
+        var email = adminSection["Email"];
+        var name = adminSection["Name"];
+        var password = adminSection["Password"];
+
+        if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(password))
+        {
+            return new AdminUserConfiguration(name, email, password);
+        }
+
+        if (environment.IsDevelopment())
+        {
+            return new AdminUserConfiguration("Administrador", "admin@example.com", "Admin123$");
+        }
+
+        throw new InvalidOperationException("Admin user settings (AdminUser:Email, AdminUser:Name, AdminUser:Password) must be provided in configuration or environment variables.");
+    }
+
+    private sealed record AdminUserConfiguration(string Name, string Email, string Password);
 }
