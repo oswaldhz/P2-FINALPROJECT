@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+*.user
+*.rsuser
+*.suo
+*.userprefs
+*.db
+*.db-journal
+
+# VS Code
+.vscode/
+
+# Node/Vite
+node_modules/
+web/node_modules/
+web/dist/
+
+# Environment
+*.env
