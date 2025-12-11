@@ -1,6 +1,10 @@
 using System.Collections.Generic;
 using System.Text;
+using Api.Services;
+using Application.Interfaces;
+using Application.Services;
 using Infrastructure.Data;
+using Infrastructure.Repositories;
 using Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +19,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IReservaService, ReservaService>();
+builder.Services.AddScoped<IEquipoService, EquipoService>();
+builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
+builder.Services.AddScoped<IEquipoRepository, EquipoRepository>();
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 
 builder.Services.AddAuthentication(options =>
 {
